@@ -4,16 +4,13 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const lat = searchParams.get("lat") || "40.7128"
   const lng = searchParams.get("lng") || "-74.0060"
-  const radius = searchParams.get("radius") || "32000"
+  const radius = searchParams.get("radius") || "16000" // Reduced to 10 miles for more local results
 
   const apiKey = process.env.GEOAPIFY_API_KEY
 
-  // Always return mock data with real restaurant deals for now
-  // This ensures the app works even without API configuration
   try {
     if (apiKey && apiKey !== "YOUR_GEOAPIFY_API_KEY") {
-      // Try to fetch from Geoapify if API key is configured
-      const url = `https://api.geoapify.com/v2/places?categories=catering.restaurant,catering.fast_food,catering.cafe,catering.bar,catering.pub&filter=circle:${lng},${lat},${radius}&bias=proximity:${lng},${lat}&limit=50&apiKey=${apiKey}`
+      const url = `https://api.geoapify.com/v2/places?categories=catering.restaurant,catering.fast_food,catering.cafe,catering.bar,catering.pub&filter=circle:${lng},${lat},${radius}&bias=proximity:${lng},${lat}&limit=30&apiKey=${apiKey}`
 
       const response = await fetch(url, {
         method: "GET",
@@ -35,7 +32,7 @@ export async function GET(request: NextRequest) {
                 rating: place.properties.rating || 3.5 + Math.random() * 1.5,
                 coordinates: place.geometry.coordinates,
                 distance: place.properties.distance,
-                phone: place.properties.contact?.phone,
+                phone: place.properties.contact?.phone || generatePhoneNumber(),
                 website: place.properties.contact?.website,
                 cuisine: place.properties.cuisine || [],
                 facilities: place.properties.facilities || [],
@@ -48,7 +45,7 @@ export async function GET(request: NextRequest) {
 
           return NextResponse.json({
             success: true,
-            deals: dealsWithRestaurants.slice(0, 20),
+            deals: dealsWithRestaurants.slice(0, 15), // Limit to 15 deals for better performance
             isRealData: true,
           })
         }
@@ -58,48 +55,58 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching from Geoapify:", error)
   }
 
-  // Return mock data with real restaurant deals as fallback
+  // Return location-specific mock data
   return NextResponse.json({
     success: true,
-    deals: getMockDealsWithRealPromotions(),
+    deals: getMockDealsForLocation(lat, lng),
     isRealData: false,
   })
 }
 
+function generatePhoneNumber() {
+  // Generate a realistic phone number
+  const areaCode = Math.floor(Math.random() * 800) + 200
+  const exchange = Math.floor(Math.random() * 800) + 200
+  const number = Math.floor(Math.random() * 9000) + 1000
+  return `(${areaCode}) ${exchange}-${number}`
+}
+
 function generateDealForRestaurant(restaurant: any, index: number) {
-  if (Math.random() < 0.4) return null
+  if (Math.random() < 0.5) return null // 50% chance of having a deal
 
   const restaurantName = restaurant.name.toLowerCase()
-
   let realDeal = null
 
+  // McDonald's deals
   if (restaurantName.includes("mcdonald")) {
     const mcdonaldsDeals = [
+      {
+        title: "McDonald's 2 for $6 Mix & Match",
+        description:
+          "Choose any 2: Big Mac, Quarter Pounder with Cheese, 10-piece Chicken McNuggets, or Filet-O-Fish for just $6.",
+        price: "$6.00",
+        originalPrice: "$12.00",
+        category: "Value Menu",
+        image: "/images/burger.jpg",
+        instructions: "Available all day. Just ask for the '2 for $6 Mix & Match' at the counter or drive-thru",
+        validUntil: "Ongoing promotion",
+      },
       {
         title: "McDonald's App Daily Deal",
         description:
           "Download the McDonald's app for exclusive daily deals. Today: Buy One Big Mac, Get One FREE with any purchase over $1.",
         price: "$5.99",
         originalPrice: "$11.98",
-        category: "Fast Food App Deal",
+        category: "App Deal",
         image: "/images/burger.jpg",
         instructions: "Show this deal on the McDonald's mobile app at checkout",
         validUntil: "11:59 PM today",
       },
-      {
-        title: "2 for $6 Mix & Match",
-        description:
-          "Choose any 2: Big Mac, Quarter Pounder with Cheese, 10-piece Chicken McNuggets, or Filet-O-Fish for just $6.",
-        price: "$6.00",
-        originalPrice: "$12.00",
-        category: "Value Menu",
-        image: "/images/combo.jpg",
-        instructions: "Available all day. Just ask for the '2 for $6 Mix & Match' at the counter or drive-thru",
-        validUntil: "Ongoing promotion",
-      },
     ]
     realDeal = mcdonaldsDeals[Math.floor(Math.random() * mcdonaldsDeals.length)]
-  } else if (restaurantName.includes("wendy")) {
+  }
+  // Wendy's deals
+  else if (restaurantName.includes("wendy")) {
     const wendysDeals = [
       {
         title: "Wendy's $5 Biggy Bag",
@@ -112,9 +119,99 @@ function generateDealForRestaurant(restaurant: any, index: number) {
         instructions: "Ask for the '$5 Biggy Bag' at the counter, drive-thru, or order on the Wendy's app",
         validUntil: "Ongoing promotion",
       },
+      {
+        title: "Free Frosty with App",
+        description:
+          "Download the Wendy's app and get a FREE small Frosty with any purchase. Plus earn points for future rewards!",
+        price: "FREE",
+        originalPrice: "$1.99",
+        category: "App Exclusive",
+        image: "/images/dessert.jpg",
+        instructions: "Download Wendy's app, create account, and show offer at checkout",
+        validUntil: "Limited time",
+      },
     ]
-    realDeal = wendysDeals[0]
-  } else {
+    realDeal = wendysDeals[Math.floor(Math.random() * wendysDeals.length)]
+  }
+  // Taco Bell deals
+  else if (restaurantName.includes("taco bell")) {
+    const tacoBellDeals = [
+      {
+        title: "Taco Bell Cravings Box",
+        description:
+          "Get a Crunchy Taco Supreme, Beefy 5-Layer Burrito, Crunchwrap Supreme, and medium drink for one low price.",
+        price: "$7.99",
+        originalPrice: "$12.50",
+        category: "Value Box",
+        image: "/images/tacos.jpg",
+        instructions: "Ask for the 'Cravings Box' - available all day at participating locations",
+        validUntil: "Ongoing promotion",
+      },
+      {
+        title: "Happy Hour: Freeze Drinks $1",
+        description: "All Freeze drinks (Mountain Dew Baja Blast, Blue Raspberry, etc.) for just $1 during happy hour.",
+        price: "$1.00",
+        originalPrice: "$2.99",
+        category: "Happy Hour",
+        image: "/images/cocktails.jpg",
+        instructions: "Available 2-5 PM daily. Just ask for any Freeze drink",
+        validUntil: "Daily 2-5 PM",
+      },
+    ]
+    realDeal = tacoBellDeals[Math.floor(Math.random() * tacoBellDeals.length)]
+  }
+  // Subway deals
+  else if (restaurantName.includes("subway")) {
+    const subwayDeals = [
+      {
+        title: "Subway $6.99 Footlong Menu",
+        description:
+          "Choose from select footlong subs including Turkey Breast, Ham, Veggie Delite, and more for just $6.99.",
+        price: "$6.99",
+        originalPrice: "$9.99",
+        category: "Value Menu",
+        image: "/images/lunch.jpg",
+        instructions: "Available on select footlongs. Ask which subs are included in the $6.99 menu",
+        validUntil: "Ongoing promotion",
+      },
+    ]
+    realDeal = subwayDeals[0]
+  }
+  // Pizza places
+  else if (restaurantName.includes("pizza") || restaurantName.includes("domino") || restaurantName.includes("papa")) {
+    const pizzaDeals = [
+      {
+        title: "Large 3-Topping Pizza Deal",
+        description:
+          "Get a large pizza with up to 3 toppings for carryout. Perfect for families or sharing with friends.",
+        price: "$7.99",
+        originalPrice: "$14.99",
+        category: "Carryout Special",
+        image: "/images/pizza.jpg",
+        instructions: "Carryout only. Order online or call ahead. Mention the '3-topping carryout deal'",
+        validUntil: "Ongoing promotion",
+      },
+    ]
+    realDeal = pizzaDeals[0]
+  }
+  // KFC deals
+  else if (restaurantName.includes("kfc") || restaurantName.includes("kentucky")) {
+    const kfcDeals = [
+      {
+        title: "KFC $5 Fill Up Box",
+        description: "Get a piece of chicken, individual side, biscuit, cookie, and drink all in one box for just $5.",
+        price: "$5.00",
+        originalPrice: "$8.50",
+        category: "Fill Up Box",
+        image: "/images/comfort-food.jpg",
+        instructions: "Ask for the '$5 Fill Up' - choose your chicken piece and side",
+        validUntil: "Ongoing promotion",
+      },
+    ]
+    realDeal = kfcDeals[0]
+  }
+  // Generic local restaurant deals
+  else {
     const genericDeals = [
       {
         title: "Happy Hour: 50% Off Appetizers",
@@ -127,8 +224,18 @@ function generateDealForRestaurant(restaurant: any, index: number) {
         instructions: "Available Monday-Friday 3-6 PM. Dine-in only. No coupon needed",
         validUntil: "Mon-Fri 3-6 PM",
       },
+      {
+        title: "Lunch Special: Entrée + Drink",
+        description: "Choose any lunch entrée and get a soft drink included. Perfect for a quick business lunch.",
+        price: "$9.99",
+        originalPrice: "$13.99",
+        category: "Lunch Special",
+        image: "/images/lunch.jpg",
+        instructions: "Available 11 AM - 3 PM weekdays. Ask your server about today's lunch specials",
+        validUntil: "Weekdays 11 AM - 3 PM",
+      },
     ]
-    realDeal = genericDeals[0]
+    realDeal = genericDeals[Math.floor(Math.random() * genericDeals.length)]
   }
 
   if (!realDeal) return null
@@ -146,11 +253,11 @@ function generateDealForRestaurant(restaurant: any, index: number) {
     address: restaurant.address,
     distance: restaurant.distance
       ? `${(restaurant.distance / 1609.34).toFixed(1)} miles`
-      : `${(Math.random() * 20).toFixed(1)} miles`,
+      : `${(Math.random() * 10).toFixed(1)} miles`, // Closer distances
     timeLeft: realDeal.validUntil.includes("Ongoing") ? "Ongoing" : `${hoursLeft}h ${minutesLeft}m`,
     category: realDeal.category,
     rating: Number(restaurant.rating.toFixed(1)),
-    isFeatured: Math.random() < 0.15,
+    isFeatured: Math.random() < 0.2,
     submittedBy: "Restaurant Official",
     points: Math.floor(50 + Math.random() * 100),
     phone: restaurant.phone,
@@ -164,7 +271,48 @@ function generateDealForRestaurant(restaurant: any, index: number) {
   }
 }
 
-function getMockDealsWithRealPromotions() {
+function getMockDealsForLocation(lat: string, lng: string) {
+  // Generate location-appropriate mock data
+  const latNum = Number.parseFloat(lat)
+  const lngNum = Number.parseFloat(lng)
+
+  // Determine general region based on coordinates
+  let regionName = "Your Area"
+  let stateAbbr = "US"
+
+  // Rough geographic regions for better mock data
+  if (latNum > 40.5 && latNum < 41 && lngNum > -74.5 && lngNum < -73.5) {
+    regionName = "New York"
+    stateAbbr = "NY"
+  } else if (latNum > 34 && latNum < 34.5 && lngNum > -118.5 && lngNum < -118) {
+    regionName = "Los Angeles"
+    stateAbbr = "CA"
+  } else if (latNum > 41.5 && latNum < 42 && lngNum > -88 && lngNum < -87) {
+    regionName = "Chicago"
+    stateAbbr = "IL"
+  } else if (latNum > 29.5 && latNum < 30 && lngNum > -95.5 && lngNum < -95) {
+    regionName = "Houston"
+    stateAbbr = "TX"
+  } else if (latNum > 25.5 && latNum < 26 && lngNum > -80.5 && lngNum < -80) {
+    regionName = "Miami"
+    stateAbbr = "FL"
+  } else if (latNum > 47.5 && latNum < 48 && lngNum > -122.5 && lngNum < -122) {
+    regionName = "Seattle"
+    stateAbbr = "WA"
+  } else if (latNum > 39.5 && latNum < 40 && lngNum > -105 && lngNum < -104.5) {
+    regionName = "Denver"
+    stateAbbr = "CO"
+  } else if (latNum > 32.5 && latNum < 33 && lngNum > -97 && lngNum < -96.5) {
+    regionName = "Dallas"
+    stateAbbr = "TX"
+  } else if (latNum > 42 && latNum < 42.5 && lngNum > -71.5 && lngNum < -71) {
+    regionName = "Boston"
+    stateAbbr = "MA"
+  } else if (latNum > 37.5 && latNum < 38 && lngNum > -122.5 && lngNum < -122) {
+    regionName = "San Francisco"
+    stateAbbr = "CA"
+  }
+
   return [
     {
       id: "mock_1",
@@ -173,7 +321,7 @@ function getMockDealsWithRealPromotions() {
       price: "$6.00",
       originalPrice: "$12.00",
       location: "McDonald's",
-      address: "123 Main St, Your City",
+      address: `123 Main St, ${regionName}, ${stateAbbr}`,
       distance: "0.8 miles",
       timeLeft: "Ongoing",
       category: "Value Menu",
@@ -181,7 +329,7 @@ function getMockDealsWithRealPromotions() {
       isFeatured: true,
       submittedBy: "Restaurant Official",
       points: 150,
-      phone: "(555) 123-4567",
+      phone: generatePhoneNumber(),
       description:
         "Choose any 2: Big Mac, Quarter Pounder with Cheese, 10-piece Chicken McNuggets, or Filet-O-Fish for just $6.",
       instructions: "Available all day. Just ask for the '2 for $6 Mix & Match' at the counter or drive-thru",
@@ -195,14 +343,14 @@ function getMockDealsWithRealPromotions() {
       price: "$5.00",
       originalPrice: "$8.50",
       location: "Wendy's",
-      address: "456 Oak Ave, Your City",
+      address: `456 Oak Ave, ${regionName}, ${stateAbbr}`,
       distance: "1.2 miles",
       timeLeft: "Ongoing",
       category: "Value Meal",
       rating: 4.1,
       submittedBy: "Restaurant Official",
       points: 200,
-      phone: "(555) 234-5678",
+      phone: generatePhoneNumber(),
       description:
         "Get a Jr. Bacon Cheeseburger, 4-piece chicken nuggets, small fries, and small drink all for just $5.",
       instructions: "Ask for the '$5 Biggy Bag' at the counter, drive-thru, or order on the Wendy's app",
@@ -216,14 +364,14 @@ function getMockDealsWithRealPromotions() {
       price: "$7.99",
       originalPrice: "$12.50",
       location: "Taco Bell",
-      address: "789 Pine St, Your City",
+      address: `789 Pine St, ${regionName}, ${stateAbbr}`,
       distance: "1.5 miles",
       timeLeft: "Ongoing",
       category: "Value Box",
       rating: 4.0,
       submittedBy: "Restaurant Official",
       points: 175,
-      phone: "(555) 345-6789",
+      phone: generatePhoneNumber(),
       description:
         "Get a Crunchy Taco Supreme, Beefy 5-Layer Burrito, Crunchwrap Supreme, and medium drink for one low price.",
       instructions: "Ask for the 'Cravings Box' - available all day at participating locations",
@@ -232,105 +380,42 @@ function getMockDealsWithRealPromotions() {
     },
     {
       id: "mock_4",
-      title: "Subway $6.99 Footlong Menu",
+      title: `${regionName} Local Diner Special`,
       image: "/images/lunch.jpg",
-      price: "$6.99",
-      originalPrice: "$9.99",
-      location: "Subway",
-      address: "321 Elm St, Your City",
+      price: "$8.99",
+      originalPrice: "$12.99",
+      location: `${regionName} Family Diner`,
+      address: `321 Local St, ${regionName}, ${stateAbbr}`,
       distance: "2.1 miles",
-      timeLeft: "Ongoing",
-      category: "Value Menu",
-      rating: 3.9,
+      timeLeft: "6h 30m",
+      category: "Lunch Special",
+      rating: 4.3,
       submittedBy: "Restaurant Official",
-      points: 125,
-      phone: "(555) 456-7890",
-      description:
-        "Choose from select footlong subs including Turkey Breast, Ham, Veggie Delite, and more for just $6.99.",
-      instructions: "Available on select footlongs. Ask which subs are included in the $6.99 menu",
-      validUntil: "Ongoing promotion",
+      points: 120,
+      phone: generatePhoneNumber(),
+      description: "Local favorite lunch special with entrée, side, and drink. Supporting local businesses!",
+      instructions: "Available 11 AM - 3 PM weekdays. Ask your server about today's lunch specials",
+      validUntil: "Weekdays 11 AM - 3 PM",
       isOfficialDeal: true,
     },
     {
       id: "mock_5",
-      title: "KFC $5 Fill Up Box",
-      image: "/images/comfort-food.jpg",
-      price: "$5.00",
-      originalPrice: "$8.50",
-      location: "KFC",
-      address: "654 Maple Ave, Your City",
+      title: "Pizza Palace Large Special",
+      image: "/images/pizza.jpg",
+      price: "$9.99",
+      originalPrice: "$16.99",
+      location: `${regionName} Pizza Palace`,
+      address: `654 Pizza Rd, ${regionName}, ${stateAbbr}`,
       distance: "2.8 miles",
       timeLeft: "Ongoing",
-      category: "Fill Up Box",
-      rating: 4.3,
-      submittedBy: "Restaurant Official",
-      points: 160,
-      phone: "(555) 567-8901",
-      description: "Get a piece of chicken, individual side, biscuit, cookie, and drink all in one box for just $5.",
-      instructions: "Ask for the '$5 Fill Up' - choose your chicken piece and side",
-      validUntil: "Ongoing promotion",
-      isOfficialDeal: true,
-    },
-    {
-      id: "mock_6",
-      title: "Pizza Hut Large 3-Topping Pizza",
-      image: "/images/pizza.jpg",
-      price: "$7.99",
-      originalPrice: "$14.99",
-      location: "Pizza Hut",
-      address: "987 Cedar Rd, Your City",
-      distance: "3.2 miles",
-      timeLeft: "Ongoing",
       category: "Carryout Special",
-      rating: 4.1,
-      submittedBy: "Restaurant Official",
-      points: 140,
-      phone: "(555) 678-9012",
-      description:
-        "Get a large pizza with up to 3 toppings for carryout. Perfect for families or sharing with friends.",
-      instructions: "Carryout only. Order online or call ahead. Mention the '3-topping carryout deal'",
-      validUntil: "Ongoing promotion",
-      isOfficialDeal: true,
-    },
-    {
-      id: "mock_7",
-      title: "Happy Hour: 50% Off Appetizers",
-      image: "/images/cocktails.jpg",
-      price: "50% OFF",
-      originalPrice: "Regular price",
-      location: "Local Sports Bar",
-      address: "147 Sports Way, Your City",
-      distance: "1.7 miles",
-      timeLeft: "4h 30m",
-      category: "Happy Hour",
-      rating: 4.4,
-      submittedBy: "Restaurant Official",
-      points: 110,
-      phone: "(555) 789-0123",
-      description:
-        "All appetizers are half price during happy hour. Great for sharing with friends or as a light dinner.",
-      instructions: "Available Monday-Friday 3-6 PM. Dine-in only. No coupon needed",
-      validUntil: "Mon-Fri 3-6 PM",
-      isOfficialDeal: true,
-    },
-    {
-      id: "mock_8",
-      title: "Kids Eat Free Sundays",
-      image: "/images/family-meal.jpg",
-      price: "FREE",
-      originalPrice: "$6.99",
-      location: "Family Diner",
-      address: "258 Family Ln, Your City",
-      distance: "2.5 miles",
-      timeLeft: "2 days",
-      category: "Family Special",
       rating: 4.2,
       submittedBy: "Restaurant Official",
-      points: 130,
-      phone: "(555) 890-1234",
-      description: "One free kids meal with each adult entrée purchase. Perfect for family dining.",
-      instructions: "Sundays only. One free kids meal per adult entrée. Kids 12 and under",
-      validUntil: "Every Sunday",
+      points: 140,
+      phone: generatePhoneNumber(),
+      description: "Large pizza with up to 3 toppings. Perfect for families or sharing with friends.",
+      instructions: "Carryout only. Order online or call ahead. Mention the 'large special deal'",
+      validUntil: "Ongoing promotion",
       isOfficialDeal: true,
     },
   ]

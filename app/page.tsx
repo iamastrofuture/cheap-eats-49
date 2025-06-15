@@ -25,6 +25,7 @@ import {
 import Image from "next/image"
 import RestaurantFinder from "@/components/restaurant-finder"
 import CouponModal from "@/components/coupon-modal"
+import LocationSelector from "@/components/location-selector"
 
 interface Deal {
   id: string
@@ -69,13 +70,14 @@ export default function CheapEatsApp() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [isAdmin, setIsAdmin] = useState(false)
-  const [currentLocation, setCurrentLocation] = useState("Your Area")
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [currentLocation, setCurrentLocation] = useState("New York, NY")
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>({ lat: 40.7128, lng: -74.006 })
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(false)
   const [isRealData, setIsRealData] = useState(false)
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
   const [showCouponModal, setShowCouponModal] = useState(false)
+  const [showLocationSelector, setShowLocationSelector] = useState(false)
 
   // Updated categories based on meal types and dining occasions
   const categories = [
@@ -93,23 +95,6 @@ export default function CheapEatsApp() {
     "Desserts",
   ]
 
-  // Get user's current location
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
-        },
-        (error) => {
-          console.error("Error getting location:", error)
-        },
-      )
-    }
-  }, [])
-
   // Fetch deals when location changes
   useEffect(() => {
     fetchDeals()
@@ -121,7 +106,7 @@ export default function CheapEatsApp() {
       const lat = userLocation?.lat || 40.7128
       const lng = userLocation?.lng || -74.006
 
-      const response = await fetch(`/api/nearby-deals?lat=${lat}&lng=${lng}&radius=32000`)
+      const response = await fetch(`/api/nearby-deals?lat=${lat}&lng=${lng}&radius=16000`)
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -146,12 +131,13 @@ export default function CheapEatsApp() {
           price: "$6.00",
           originalPrice: "$12.00",
           location: "McDonald's",
-          address: "Local McDonald's",
+          address: `Local McDonald's, ${currentLocation}`,
           distance: "1.0 miles",
           timeLeft: "Ongoing",
           category: "Value Menu",
           rating: 4.2,
           submittedBy: "Restaurant Official",
+          phone: "(555) 123-4567",
           description:
             "Choose any 2: Big Mac, Quarter Pounder with Cheese, 10-piece Chicken McNuggets, or Filet-O-Fish for just $6.",
         },
@@ -162,12 +148,13 @@ export default function CheapEatsApp() {
           price: "$5.00",
           originalPrice: "$8.50",
           location: "Wendy's",
-          address: "Local Wendy's",
+          address: `Local Wendy's, ${currentLocation}`,
           distance: "1.2 miles",
           timeLeft: "Ongoing",
           category: "Value Meal",
           rating: 4.1,
           submittedBy: "Restaurant Official",
+          phone: "(555) 234-5678",
           description:
             "Get a Jr. Bacon Cheeseburger, 4-piece chicken nuggets, small fries, and small drink all for just $5.",
         },
@@ -176,6 +163,11 @@ export default function CheapEatsApp() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleLocationSelect = (location: { lat: number; lng: number; name: string }) => {
+    setUserLocation({ lat: location.lat, lng: location.lng })
+    setCurrentLocation(location.name)
   }
 
   const filteredDeals = deals.filter((deal) => {
@@ -246,6 +238,7 @@ export default function CheapEatsApp() {
   }
 
   const getExpiryTime = (timeLeft: string) => {
+    if (timeLeft === "Ongoing") return "Ongoing promotion"
     const now = new Date()
     const [hours, minutes] = timeLeft.replace("h", "").replace("m", "").split(" ").map(Number)
     const expiry = new Date(now.getTime() + (hours * 60 + minutes) * 60000)
@@ -327,13 +320,13 @@ export default function CheapEatsApp() {
           <div className="grid grid-cols-2 gap-2">
             <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleGetCoupon(deal)}>
               <DollarSign className="w-3 h-3 mr-1" />
-              Get Coupon
+              Get Deal
             </Button>
             {deal.phone && (
               <Button variant="outline" asChild>
                 <a href={`tel:${formatPhoneForCall(deal.phone)}`}>
                   <Phone className="w-3 h-3 mr-1" />
-                  Call {formatPhoneForDisplay(deal.phone)}
+                  Call
                 </a>
               </Button>
             )}
@@ -399,19 +392,10 @@ export default function CheapEatsApp() {
       <div>
         <label className="block text-sm font-medium mb-1">Location</label>
         <Input placeholder="Restaurant address" />
-        {userLocation && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-2"
-            onClick={() => {
-              console.log("Current location:", userLocation)
-            }}
-          >
-            <Navigation className="w-3 h-3 mr-1" />
-            Use Current Location
-          </Button>
-        )}
+        <Button variant="outline" size="sm" className="mt-2" onClick={() => setShowLocationSelector(true)}>
+          <Navigation className="w-3 h-3 mr-1" />
+          Use Current Location
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -452,6 +436,12 @@ export default function CheapEatsApp() {
             </div>
           </div>
 
+          {/* Location Selector */}
+          <Button variant="outline" className="w-full mb-3 justify-start" onClick={() => setShowLocationSelector(true)}>
+            <MapPin className="w-4 h-4 mr-2" />
+            <span className="truncate">{currentLocation}</span>
+          </Button>
+
           {/* Search Bar */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -470,7 +460,7 @@ export default function CheapEatsApp() {
         <div className="bg-green-50 border-b border-green-200 px-4 py-2">
           <div className="flex items-center text-green-800 text-xs">
             <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-            Showing real restaurants and deals in your area
+            Showing real restaurants and deals in {currentLocation}
           </div>
         </div>
       )}
@@ -489,7 +479,7 @@ export default function CheapEatsApp() {
         <TabsContent value="feed" className="px-4 py-4">
           {/* Refresh Button */}
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold">Live Deals</h2>
+            <h2 className="text-lg font-bold">Live Deals in {currentLocation}</h2>
             <Button variant="outline" size="sm" onClick={fetchDeals} disabled={loading}>
               {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             </Button>
@@ -665,6 +655,15 @@ export default function CheapEatsApp() {
           </Card>
         </div>
       )}
+
+      {/* Location Selector Modal */}
+      <LocationSelector
+        isOpen={showLocationSelector}
+        onClose={() => setShowLocationSelector(false)}
+        onLocationSelect={handleLocationSelect}
+        currentLocation={currentLocation}
+      />
+
       {/* Coupon Modal */}
       <CouponModal
         deal={selectedDeal}
