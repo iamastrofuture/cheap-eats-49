@@ -70,7 +70,7 @@ export default function CheapEatsApp() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [isAdmin, setIsAdmin] = useState(false)
-  const [currentLocation, setCurrentLocation] = useState("New York, NY")
+  const [currentLocation, setCurrentLocation] = useState("New York, NY 10001")
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>({ lat: 40.7128, lng: -74.006 })
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(false)
@@ -79,20 +79,22 @@ export default function CheapEatsApp() {
   const [showCouponModal, setShowCouponModal] = useState(false)
   const [showLocationSelector, setShowLocationSelector] = useState(false)
 
-  // Updated categories based on meal types and dining occasions
+  // Updated categories based on cuisine types and restaurant categories
   const categories = [
     "All",
-    "Breakfast",
-    "Lunch",
-    "Happy Hour",
-    "Fine Dining",
-    "Comfort Food",
-    "Healthy",
-    "Street Food",
-    "Late Night",
-    "Family Style",
-    "Quick Eats",
-    "Desserts",
+    "Fast Food - American",
+    "Fast Food - Mexican",
+    "Fast Food - Pizza",
+    "Fast Food - Chicken",
+    "Fast Food - Sandwiches",
+    "Chinese Cuisine",
+    "Mexican Cuisine",
+    "Italian Cuisine",
+    "Indian Cuisine",
+    "Thai Cuisine",
+    "American Diner",
+    "Steakhouse",
+    "Seafood",
   ]
 
   // Fetch deals when location changes
@@ -127,14 +129,14 @@ export default function CheapEatsApp() {
         {
           id: "fallback_1",
           title: "McDonald's 2 for $6 Mix & Match",
-          image: "/images/burger.jpg",
+          image: "/images/mcdonalds-bigmac.png",
           price: "$6.00",
           originalPrice: "$12.00",
           location: "McDonald's",
           address: `Local McDonald's, ${currentLocation}`,
           distance: "1.0 miles",
           timeLeft: "Ongoing",
-          category: "Value Menu",
+          category: "Fast Food - American",
           rating: 4.2,
           submittedBy: "Restaurant Official",
           phone: "(555) 123-4567",
@@ -143,20 +145,19 @@ export default function CheapEatsApp() {
         },
         {
           id: "fallback_2",
-          title: "Wendy's $5 Biggy Bag",
-          image: "/images/combo.jpg",
-          price: "$5.00",
-          originalPrice: "$8.50",
-          location: "Wendy's",
-          address: `Local Wendy's, ${currentLocation}`,
+          title: "Golden Dragon Chinese Combo",
+          image: "/images/chinese-takeout.png",
+          price: "$8.99",
+          originalPrice: "$12.99",
+          location: "Golden Dragon Chinese",
+          address: `Local Chinese Restaurant, ${currentLocation}`,
           distance: "1.2 miles",
           timeLeft: "Ongoing",
-          category: "Value Meal",
+          category: "Chinese Cuisine",
           rating: 4.1,
           submittedBy: "Restaurant Official",
           phone: "(555) 234-5678",
-          description:
-            "Get a Jr. Bacon Cheeseburger, 4-piece chicken nuggets, small fries, and small drink all for just $5.",
+          description: "Choose any entrée with fried rice or lo mein, plus an egg roll and soup.",
         },
       ])
       setIsRealData(false)
@@ -193,27 +194,21 @@ export default function CheapEatsApp() {
       return deal.description
     }
 
-    // Fallback descriptions
+    // Fallback descriptions based on category
     const descriptions: { [key: string]: string } = {
-      "Fast Food App Deal": "Exclusive mobile app promotion with special pricing and offers.",
-      "Value Menu": "Affordable combo meals and menu items at everyday low prices.",
-      "App Exclusive": "Special deals only available through the restaurant's mobile app.",
-      "Value Box": "Complete meal combinations with multiple items at one great price.",
-      "Happy Hour": "Limited-time pricing on drinks and appetizers during specific hours.",
-      "Carryout Special": "Special pricing for pickup orders - perfect for taking home.",
-      "Combo Deal": "Multiple items bundled together for maximum value and convenience.",
-      "Fill Up Box": "Complete meal in a box with everything you need for one low price.",
-      "Weekly Special": "Special pricing available on specific days of the week.",
-      "Lunch Special": "Midday meal deals perfect for a quick and affordable lunch break.",
-      "Family Special": "Great deals designed for families and larger groups.",
-      Breakfast: "Start your day right with our hearty breakfast special.",
-      "Fine Dining": "Elegant dining experience with premium ingredients and service.",
-      "Comfort Food": "Hearty, satisfying meals that remind you of home.",
-      Healthy: "Fresh, nutritious options made with quality ingredients.",
-      "Street Food": "Authentic flavors served fast and fresh.",
-      "Late Night": "Perfect for satisfying those late-night cravings.",
-      "Quick Eats": "Fast, fresh, and flavorful meals for busy schedules.",
-      Desserts: "Sweet treats to perfectly end your meal.",
+      "Fast Food - American": "Classic American fast food favorites with great value pricing.",
+      "Fast Food - Mexican": "Quick and delicious Mexican-inspired meals and snacks.",
+      "Fast Food - Pizza": "Fresh pizza made to order with your favorite toppings.",
+      "Fast Food - Chicken": "Crispy, juicy chicken prepared with signature seasonings.",
+      "Fast Food - Sandwiches": "Fresh sandwiches made with quality ingredients.",
+      "Chinese Cuisine": "Authentic Chinese dishes with traditional flavors and fresh ingredients.",
+      "Mexican Cuisine": "Traditional Mexican cuisine with authentic spices and fresh ingredients.",
+      "Italian Cuisine": "Classic Italian dishes made with traditional recipes and fresh ingredients.",
+      "Indian Cuisine": "Aromatic Indian dishes with authentic spices and traditional cooking methods.",
+      "Thai Cuisine": "Authentic Thai flavors with the perfect balance of sweet, sour, and spicy.",
+      "American Diner": "Classic American comfort food in a friendly, casual atmosphere.",
+      Steakhouse: "Premium cuts of meat grilled to perfection with exceptional service.",
+      Seafood: "Fresh seafood prepared with care and served in a welcoming atmosphere.",
     }
     return descriptions[deal.category] || "Special limited-time offer with exceptional value!"
   }
@@ -479,7 +474,7 @@ export default function CheapEatsApp() {
         <TabsContent value="feed" className="px-4 py-4">
           {/* Refresh Button */}
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold">Live Deals in {currentLocation}</h2>
+            <h2 className="text-lg font-bold">Live Deals in {currentLocation.split(",")[0]}</h2>
             <Button variant="outline" size="sm" onClick={fetchDeals} disabled={loading}>
               {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             </Button>
@@ -493,7 +488,7 @@ export default function CheapEatsApp() {
                 variant={selectedCategory === category ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedCategory(category)}
-                className="whitespace-nowrap"
+                className="whitespace-nowrap text-xs"
               >
                 {category}
               </Button>
@@ -539,7 +534,7 @@ export default function CheapEatsApp() {
         {/* Near Me Tab */}
         <TabsContent value="nearby" className="px-4 py-4">
           <div className="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <h2 className="text-lg font-bold mb-2 text-blue-900">Deals Near {currentLocation}</h2>
+            <h2 className="text-lg font-bold mb-2 text-blue-900">Deals Near {currentLocation.split(",")[0]}</h2>
             <p className="text-sm text-blue-700">Within 20 miles of your location</p>
             <div className="mt-2 text-xs text-blue-600">📍 {nearbyDeals.length} deals found in your area</div>
             {isRealData && <div className="mt-2 text-xs text-green-600">✅ Real restaurant data</div>}
