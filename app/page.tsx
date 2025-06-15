@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import RestaurantFinder from "@/components/restaurant-finder"
+import CouponModal from "@/components/coupon-modal"
 
 interface Deal {
   id: string
@@ -44,6 +45,7 @@ interface Deal {
   website?: string
   coordinates?: [number, number]
   facilities?: string[]
+  description?: string
 }
 
 interface DealsResponse {
@@ -72,6 +74,8 @@ export default function CheapEatsApp() {
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(false)
   const [isRealData, setIsRealData] = useState(false)
+  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
+  const [showCouponModal, setShowCouponModal] = useState(false)
 
   // Updated categories based on meal types and dining occasions
   const categories = [
@@ -118,14 +122,57 @@ export default function CheapEatsApp() {
       const lng = userLocation?.lng || -74.006
 
       const response = await fetch(`/api/nearby-deals?lat=${lat}&lng=${lng}&radius=32000`)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
       const data: DealsResponse = await response.json()
 
-      if (data.success) {
+      if (data.success && data.deals) {
         setDeals(data.deals)
         setIsRealData(data.isRealData || false)
+      } else {
+        throw new Error("Invalid response format")
       }
     } catch (error) {
       console.error("Error fetching deals:", error)
+      // Set fallback deals if API fails
+      setDeals([
+        {
+          id: "fallback_1",
+          title: "McDonald's 2 for $6 Mix & Match",
+          image: "/images/burger.jpg",
+          price: "$6.00",
+          originalPrice: "$12.00",
+          location: "McDonald's",
+          address: "Local McDonald's",
+          distance: "1.0 miles",
+          timeLeft: "Ongoing",
+          category: "Value Menu",
+          rating: 4.2,
+          submittedBy: "Restaurant Official",
+          description:
+            "Choose any 2: Big Mac, Quarter Pounder with Cheese, 10-piece Chicken McNuggets, or Filet-O-Fish for just $6.",
+        },
+        {
+          id: "fallback_2",
+          title: "Wendy's $5 Biggy Bag",
+          image: "/images/combo.jpg",
+          price: "$5.00",
+          originalPrice: "$8.50",
+          location: "Wendy's",
+          address: "Local Wendy's",
+          distance: "1.2 miles",
+          timeLeft: "Ongoing",
+          category: "Value Meal",
+          rating: 4.1,
+          submittedBy: "Restaurant Official",
+          description:
+            "Get a Jr. Bacon Cheeseburger, 4-piece chicken nuggets, small fries, and small drink all for just $5.",
+        },
+      ])
+      setIsRealData(false)
     } finally {
       setLoading(false)
     }
@@ -147,6 +194,68 @@ export default function CheapEatsApp() {
     const distance = Number.parseFloat(deal.distance.replace(" miles", ""))
     return distance <= 20
   })
+
+  const getDealDescription = (deal: Deal) => {
+    // Use the actual description from the deal if available
+    if (deal.description) {
+      return deal.description
+    }
+
+    // Fallback descriptions
+    const descriptions: { [key: string]: string } = {
+      "Fast Food App Deal": "Exclusive mobile app promotion with special pricing and offers.",
+      "Value Menu": "Affordable combo meals and menu items at everyday low prices.",
+      "App Exclusive": "Special deals only available through the restaurant's mobile app.",
+      "Value Box": "Complete meal combinations with multiple items at one great price.",
+      "Happy Hour": "Limited-time pricing on drinks and appetizers during specific hours.",
+      "Carryout Special": "Special pricing for pickup orders - perfect for taking home.",
+      "Combo Deal": "Multiple items bundled together for maximum value and convenience.",
+      "Fill Up Box": "Complete meal in a box with everything you need for one low price.",
+      "Weekly Special": "Special pricing available on specific days of the week.",
+      "Lunch Special": "Midday meal deals perfect for a quick and affordable lunch break.",
+      "Family Special": "Great deals designed for families and larger groups.",
+      Breakfast: "Start your day right with our hearty breakfast special.",
+      "Fine Dining": "Elegant dining experience with premium ingredients and service.",
+      "Comfort Food": "Hearty, satisfying meals that remind you of home.",
+      Healthy: "Fresh, nutritious options made with quality ingredients.",
+      "Street Food": "Authentic flavors served fast and fresh.",
+      "Late Night": "Perfect for satisfying those late-night cravings.",
+      "Quick Eats": "Fast, fresh, and flavorful meals for busy schedules.",
+      Desserts: "Sweet treats to perfectly end your meal.",
+    }
+    return descriptions[deal.category] || "Special limited-time offer with exceptional value!"
+  }
+
+  // Add this function to format phone numbers properly
+  const formatPhoneForCall = (phone: string) => {
+    // Remove any non-digit characters for the tel: link
+    return phone.replace(/\D/g, "")
+  }
+
+  const formatPhoneForDisplay = (phone: string) => {
+    // Remove any non-digit characters
+    const cleaned = phone.replace(/\D/g, "")
+
+    // Format as (XXX) XXX-XXXX if it's a 10-digit US number
+    if (cleaned.length === 10) {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`
+    }
+
+    // Return original if not a standard format
+    return phone
+  }
+
+  const getExpiryTime = (timeLeft: string) => {
+    const now = new Date()
+    const [hours, minutes] = timeLeft.replace("h", "").replace("m", "").split(" ").map(Number)
+    const expiry = new Date(now.getTime() + (hours * 60 + minutes) * 60000)
+    return expiry.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  }
+
+  const handleGetCoupon = (deal: Deal) => {
+    setSelectedDeal(deal)
+    setShowCouponModal(true)
+  }
 
   const DealCard = ({ deal }: { deal: Deal }) => (
     <Card
@@ -202,27 +311,43 @@ export default function CheapEatsApp() {
           <div className="text-xs text-gray-500">by {deal.submittedBy}</div>
         </div>
 
-        {/* Contact buttons for real restaurants */}
-        {(deal.phone || deal.website) && (
-          <div className="flex space-x-2 pt-2 border-t">
+        {/* Deal Details and Actions */}
+        <div className="space-y-3 pt-3 border-t">
+          {/* Deal Description */}
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <h4 className="font-semibold text-sm text-gray-900 mb-1">Deal Details:</h4>
+            <p className="text-sm text-gray-700">{getDealDescription(deal)}</p>
+            <div className="flex items-center mt-2 text-xs text-gray-600">
+              <Clock className="w-3 h-3 mr-1" />
+              Valid until {getExpiryTime(deal.timeLeft)}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleGetCoupon(deal)}>
+              <DollarSign className="w-3 h-3 mr-1" />
+              Get Coupon
+            </Button>
             {deal.phone && (
-              <Button variant="outline" size="sm" asChild className="flex-1">
-                <a href={`tel:${deal.phone}`}>
+              <Button variant="outline" asChild>
+                <a href={`tel:${formatPhoneForCall(deal.phone)}`}>
                   <Phone className="w-3 h-3 mr-1" />
-                  Call
-                </a>
-              </Button>
-            )}
-            {deal.website && (
-              <Button variant="outline" size="sm" asChild className="flex-1">
-                <a href={deal.website} target="_blank" rel="noopener noreferrer">
-                  <Globe className="w-3 h-3 mr-1" />
-                  Website
+                  Call {formatPhoneForDisplay(deal.phone)}
                 </a>
               </Button>
             )}
           </div>
-        )}
+
+          {deal.website && (
+            <Button variant="outline" className="w-full" asChild>
+              <a href={deal.website} target="_blank" rel="noopener noreferrer">
+                <Globe className="w-3 h-3 mr-1" />
+                Visit Website
+              </a>
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   )
@@ -540,6 +665,15 @@ export default function CheapEatsApp() {
           </Card>
         </div>
       )}
+      {/* Coupon Modal */}
+      <CouponModal
+        deal={selectedDeal}
+        isOpen={showCouponModal}
+        onClose={() => {
+          setShowCouponModal(false)
+          setSelectedDeal(null)
+        }}
+      />
     </div>
   )
 }
